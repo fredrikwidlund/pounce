@@ -10,6 +10,7 @@ src/pounce.c
 
 bin_pounce_SOURCES = $(POUNCE_SOURCE_FILES)
 bin_pounce_LDADD = -lreactor -ldynamic
+bin_pounce_LDFLAGS = -pthread
 
 MAINTAINERCLEANFILES = aclocal.m4 config.h.in configure Makefile.in
 maintainer-clean-local:; rm -rf autotools m4

@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <err.h>
 #include <errno.h>
+#include <pthread.h>
 #include <netinet/tcp.h>
 #include <sys/epoll.h>
 #include <sys/sysinfo.h>
@@ -137,6 +139,12 @@ void http_client_close(http_client *client)
   }
 }
 
+void http_client_destruct(http_client *client)
+{
+  http_client_close(client);
+  stream_destruct(&client->stream);
+}
+
 typedef struct session session;
 typedef struct worker worker;
 
@@ -149,6 +157,7 @@ struct session
 struct worker
 {
   size_t instance;
+  pthread_t thread;
   struct addrinfo *addrinfo;
   timer timer;
   list sessions;
@@ -182,21 +191,9 @@ static core_status request(core_event *event)
   return CORE_OK;
 }
 
-static core_status timeout(core_event *event)
+void worker_construct(worker *worker, size_t instance)
 {
-  worker *worker  = event->state;
-
-  (void) fprintf(stdout, "[%lu] %lu/%lu\n", worker->instance, worker->success, worker->failure);
-  worker->success = 0;
-  worker->failure = 0;
-  return CORE_OK;
-}
-
-void worker_construct(worker *worker)
-{
-  *worker = (struct worker) {0};
-  timer_construct(&worker->timer, timeout, worker);
-  list_construct(&worker->sessions);
+  *worker = (struct worker) {.instance = instance};
 }
 
 void worker_open(worker *worker, struct addrinfo *addrinfo, size_t sessions)
@@ -204,7 +201,6 @@ void worker_open(worker *worker, struct addrinfo *addrinfo, size_t sessions)
   session *session;
 
   worker->addrinfo = addrinfo;
-  timer_set(&worker->timer, 1000000000, 1000000000);
 
   while (sessions)
   {
@@ -216,20 +212,65 @@ void worker_open(worker *worker, struct addrinfo *addrinfo, size_t sessions)
   }
 }
 
+static core_status worker_timeout(core_event *event)
+{
+  (void) event;
+  core_abort(NULL);
+  return CORE_ABORT;
+}
+
+void *worker_main(void *arg)
+{
+  worker *worker = arg;
+  session *session;
+
+  reactor_construct();
+  reactor_affinity(worker->instance);
+  timer_construct(&worker->timer, worker_timeout, worker);
+  timer_set(&worker->timer, 10000000000, 0);
+  list_construct(&worker->sessions);
+  worker_open(worker, worker->addrinfo, 5);
+  reactor_loop();
+  list_foreach(&worker->sessions, session)
+    http_client_destruct(&session->client);
+  list_destruct(&worker->sessions, NULL);
+  timer_destruct(&worker->timer);
+  reactor_destruct();
+  return NULL;
+}
+
 int main()
 {
   struct addrinfo *addrinfo;
-  worker worker;
-  size_t n = get_nprocs();
+  list workers;
+  worker *worker;
+  size_t i, n;
+  int e;
 
+  list_construct(&workers);
   net_resolve("127.0.0.1", "80", AF_INET, SOCK_STREAM, AI_NUMERICHOST | AI_NUMERICSERV, &addrinfo);
 
-  worker.instance = reactor_clone(n);
-  reactor_affinity(worker.instance);
-  reactor_construct();
-  worker_construct(&worker);
-  worker_open(&worker, addrinfo, 8);
+  n = get_nprocs();
+  for (i = 0; i < n; i++)
+  {
+    worker = list_push_back(&workers, NULL, sizeof *worker);
+    worker->instance = i;
+    worker->addrinfo = addrinfo;
+    e = pthread_create(&worker->thread, NULL, worker_main, worker);
+    if (e == -1)
+      err(1, "pthread_create");
+  }
 
-  reactor_loop();
-  reactor_destruct();
+  size_t total = 0;
+  list_foreach(&workers, worker)
+  {
+    e = pthread_join(worker->thread, NULL);
+    if (e == -1)
+      err(1, "pthread_join");
+    total += worker->success + worker->failure;
+  }
+  list_destruct(&workers, NULL);
+
+  fprintf(stdout, "Requests/sec:  %.02f\n", (double) total / 10);
+  freeaddrinfo(addrinfo);
 }
