@@ -14,6 +14,7 @@ struct pounce
   char            *serv;
   char            *target;
   int              verbosity;
+  size_t           pipeline;
   int              affinity;
   int              realtime;
   double           duration;
@@ -22,6 +23,7 @@ struct pounce
   struct addrinfo *addrinfo;
   list             workers;
   timer            timer;
+  string           request;
 };
 
 void pounce_construct(pounce *, core_callback *, void *);
