@@ -1,28 +1,27 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <err.h>
 #include <sys/sysinfo.h>
 
 #include <dynamic.h>
 #include <reactor.h>
 
+#include "url.h"
 #include "pounce.h"
 #include "worker.h"
 
 static core_status pounce_timeout(core_event *event)
 {
   pounce *pounce = event->state;
-  worker *worker;
 
   if (event->type != TIMER_ALARM)
     err(1, "timer");
-
   timer_clear(&pounce->timer);
 
-  list_foreach(&pounce->workers, worker)
-    worker_destruct(worker);
-
+  pounce_stop(pounce);
   return CORE_ABORT;
 }
 
@@ -36,25 +35,89 @@ void pounce_construct(pounce *pounce, core_callback *callback, void *state)
   timer_construct(&pounce->timer, pounce_timeout, pounce);
 }
 
+static void pounce_usage(void)
+{
+  extern char *__progname;
+
+  (void) fprintf(stderr, "Usage: %s [OPTION]... URL\n", __progname);
+  (void) fprintf(stderr, "HTTP load generator.\n");
+  (void) fprintf(stderr, "\n");
+  (void) fprintf(stderr, "Options:\n");
+  (void) fprintf(stderr, "    -c NUMBER       set number of connections (defaults to number of cpu cores * 4)\n");
+  (void) fprintf(stderr, "    -t NUMBER       set number of threads (defaults to number of cpu cores)\n");
+  (void) fprintf(stderr, "    -d SECONDS      set duration of benchmark (defaults to 10 seconds)\n");
+  (void) fprintf(stderr,
+                 "    -a              set thread affinity (automatic when threads equal number of cpu cores)\n");
+  (void) fprintf(stderr, "    -r              enable realtime scheduler (defaults to off)\n");
+  (void) fprintf(stderr, "    -v              increase verbosity\n");
+  (void) fprintf(stderr, "    -h              display this help\n");
+}
+
 void pounce_configure(pounce *pounce, int argc, char **argv)
 {
   size_t i, remaining, share;
   worker *worker;
+  int c;
 
-  (void) argc;
-  (void) argv;
+  while (1)
+  {
+    c = getopt(argc, argv, "ac:d:rt:vh");
+    if (c == -1)
+      break;
+    switch (c)
+    {
+    case 'a':
+      pounce->affinity = 1;
+      break;
+    case 'c':
+      pounce->connections = strtoul(optarg, NULL, 0);
+      break;
+    case 'd':
+      pounce->duration = strtod(optarg, NULL);
+      break;
+    case 'r':
+      pounce->realtime = 1;
+      break;
+    case 't':
+      pounce->workers_count = strtoul(optarg, NULL, 0);
+      break;
+    case 'v':
+      pounce->verbosity++;
+      break;
+    case 'h':
+    default:
+      pounce_usage();
+      return;
+    }
+  }
 
-  // manual configuration for now
-  pounce->host = "127.0.0.1";
-  pounce->serv = "80";
-  pounce->duration_warmup = 1;
-  pounce->duration_measure = 1;
-  pounce->connections = 2;
-  pounce->workers_count = 2;
+  argc -= optind;
+  argv += optind;
+  if (argc != 1)
+  {
+    pounce_usage();
+    return;
+  }
+
+  if (pounce->workers_count == 0)
+    pounce->workers_count = get_nprocs();
+  if (pounce->workers_count == (size_t) get_nprocs())
+    pounce->affinity = 1;
+  if (pounce->connections == 0)
+    pounce->connections = pounce->workers_count * 4;
+  if (pounce->duration == 0)
+    pounce->duration = 10.0;
+
+  pounce->host = url_host(argv[0]);
+  pounce->serv = url_port(argv[0]);
+  pounce->target = url_target(argv[0]);
 
   net_resolve(pounce->host, pounce->serv, AF_INET, SOCK_STREAM, 0, &pounce->addrinfo);
   if (!pounce->addrinfo)
+  {
+    warnx("unable to resolve url http://%s:%s", pounce->host, pounce->serv);
     return;
+  }
 
   remaining = pounce->connections;
   for (i = 0; i < pounce->workers_count; i++)
@@ -65,41 +128,52 @@ void pounce_configure(pounce *pounce, int argc, char **argv)
     worker_construct(worker, NULL, NULL);
     worker_configure(worker, pounce, i, share);
   }
-}
 
-void pounce_start(pounce *pounce)
-{
-  timer_set(&pounce->timer, pounce->duration_measure * 1000000000, 0);
-  pounce->time_start = core_now(NULL);
+  if (pounce->verbosity >= 1)
+    (void) fprintf(stderr, "[pounce] running benchmark for %.02fs on %lu threads with %lu connections\n",
+                   pounce->duration, pounce->workers_count, pounce->connections);
+
+  timer_set(&pounce->timer, pounce->duration * 1000000000, 0);
 }
 
 void pounce_stop(pounce *pounce)
 {
-  size_t requests_ok = 0, requests_fail = 0;
-  double duration;
   worker *worker;
 
-  pounce->time_stop = core_now(NULL);
+  list_foreach(&pounce->workers, worker) worker_stop(worker);
+}
 
-  list_foreach(&pounce->workers, worker)
-  {
-    requests_ok += worker->requests_ok;
-    requests_fail += worker->requests_fail;
-  }
+void pounce_report(pounce *pounce)
+{
+  worker *worker;
+  char prefix[32];
+  stats stats;
 
-  duration = (double) (pounce->time_stop - pounce->time_start) / 1000000000.0;
-  fprintf(stdout, "duration: %.02fs\n", duration);
-  fprintf(stdout, "requests: %lu\n", requests_ok + requests_fail);
-  fprintf(stdout, "success:  %.02f%%\n", 100.0 * (double) requests_ok / (double) (requests_ok + requests_fail));
-  fprintf(stdout, "rate:     %.02f\n", (double) (requests_ok + requests_fail) / duration);
+  if (list_empty(&pounce->workers))
+    return;
+
+  if (pounce->verbosity >= 1)
+    list_foreach(&pounce->workers, worker)
+    {
+      (void) snprintf(prefix, sizeof prefix, "[worker %lu]", worker->instance);
+      stats_report(&worker->stats, prefix, stderr);
+    }
+
+  stats_construct(&stats);
+  list_foreach(&pounce->workers, worker) stats_aggregate(&stats, &worker->stats);
+  stats_report(&stats, NULL, stdout);
+  stats_destruct(&stats);
 }
 
 void pounce_destruct(pounce *pounce)
 {
   worker *worker;
 
-  list_foreach(&pounce->workers, worker)
-    worker_destruct(worker);
+  list_foreach(&pounce->workers, worker) worker_destruct(worker);
   list_destruct(&pounce->workers, NULL);
+  free(pounce->host);
+  free(pounce->serv);
+  free(pounce->target);
   freeaddrinfo(pounce->addrinfo);
+  *pounce = (struct pounce) {0};
 }

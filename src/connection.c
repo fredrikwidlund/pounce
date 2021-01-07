@@ -17,13 +17,9 @@ static core_status connection_request(core_event *event)
     break;
   case HTTP_CLIENT_RESPONSE:
     connection->request_stop = core_now(NULL);
-    connection->requests++;
-    connection->request_total += connection->request_stop - connection->request_start;
     response = (http_response *) event->data;
-    if (response->code == 200)
-      connection->worker->requests_ok++;
-    else
-      connection->worker->requests_fail++;
+    stats_data(&connection->worker->stats, connection->request_stop - connection->request_start,
+               response->code >= 200 && response->code < 300);
     break;
   case HTTP_CLIENT_CLOSE:
     http_client_close(&connection->client);
@@ -52,6 +48,5 @@ void connection_start(connection *connection, worker *worker)
 
 void connection_destruct(connection *connection)
 {
-  fprintf(stderr, "[%p] average: %lu\n", (void *) connection, connection->request_total / connection->requests);
   http_client_destruct(&connection->client);
 }

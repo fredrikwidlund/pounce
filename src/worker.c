@@ -42,11 +42,14 @@ static void worker_main(worker *worker)
   list connections;
   connection *connection;
   size_t i;
+  core_counters *counters;
 
   worker->thread = pthread_self();
-  realtime();
   reactor_construct();
-  reactor_affinity(worker->instance);
+  if (worker->pounce->affinity)
+    reactor_affinity(worker->instance);
+  if (worker->pounce->realtime)
+    realtime();
 
   list_construct(&connections);
   for (i = 0; i < worker->connections_count; i++)
@@ -57,9 +60,10 @@ static void worker_main(worker *worker)
   }
 
   reactor_loop();
+  counters = core_get_counters(NULL);
+  stats_counters(&worker->stats, counters->awake, counters->sleep);
 
-  list_foreach(&connections, connection)
-    connection_destruct(connection);
+  list_foreach(&connections, connection) connection_destruct(connection);
   list_destruct(&connections, NULL);
 
   reactor_destruct();
@@ -89,6 +93,7 @@ void worker_construct(worker *worker, core_callback *callback, void *state)
   (void) state;
 
   *worker = (struct worker) {0};
+  stats_construct(&worker->stats);
 }
 
 void worker_configure(worker *worker, pounce *pounce, size_t instance, size_t connections)
@@ -99,16 +104,23 @@ void worker_configure(worker *worker, pounce *pounce, size_t instance, size_t co
   worker->job = pool_enqueue(NULL, worker_job, worker);
 }
 
-void worker_destruct(worker *worker)
+void worker_stop(worker *worker)
 {
+  if (worker->thread)
+  {
+    pthread_kill(worker->thread, SIGTERM);
+    worker->thread = 0;
+  }
+
   if (worker->job)
   {
-    if (worker->thread)
-    {
-      pthread_kill(worker->thread, SIGTERM);
-      worker->thread = 0;
-    }
     pool_cancel(NULL, worker->job);
     worker->job = 0;
   }
+}
+
+void worker_destruct(worker *worker)
+{
+  worker_stop(worker);
+  stats_destruct(&worker->stats);
 }

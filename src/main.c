@@ -14,9 +14,8 @@ int main(int argc, char **argv)
   pounce_construct(&pounce, NULL, NULL);
   pounce_configure(&pounce, argc, argv);
 
-  pounce_start(&pounce);
   reactor_loop();
-  pounce_stop(&pounce);
+  pounce_report(&pounce);
 
   pounce_destruct(&pounce);
   reactor_destruct();

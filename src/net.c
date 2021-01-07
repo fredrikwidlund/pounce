@@ -21,9 +21,9 @@ int net_client(struct addrinfo *addrinfo, int flags)
   if (fd == -1)
     return -1;
   if (e == 0 && flags & NET_FLAG_NODELAY)
-    e = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (int[]){1}, sizeof(int));
+    e = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (int[]) {1}, sizeof(int));
   if (e == 0 && flags & NET_FLAG_QUICKACK)
-    e = setsockopt(fd, IPPROTO_TCP, TCP_QUICKACK, (int[]){1}, sizeof(int));
+    e = setsockopt(fd, IPPROTO_TCP, TCP_QUICKACK, (int[]) {1}, sizeof(int));
   if (e == 0)
     e = connect(fd, addrinfo->ai_addr, addrinfo->ai_addrlen);
   if (e == 0 || (e == -1 && errno == EINPROGRESS))
