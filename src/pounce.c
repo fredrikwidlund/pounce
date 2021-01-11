@@ -134,6 +134,7 @@ void pounce_configure(pounce *pounce, int argc, char **argv)
     return;
   }
 
+  pool_limits(NULL, 0, pounce->workers_count + 8);
   remaining = pounce->connections;
   for (i = 0; i < pounce->workers_count; i++)
   {
