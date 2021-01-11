@@ -39,6 +39,9 @@ void stats_aggregate(stats *aggregate, stats *group)
     return;
   }
 
+  if (!group->data_points)
+    return;
+
   if (group->time_start < aggregate->time_start)
     aggregate->time_start = group->time_start;
   if (group->time_stop > aggregate->time_stop)
