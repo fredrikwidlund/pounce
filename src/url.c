@@ -41,9 +41,6 @@ char *url_target(char *arg)
   d = strstr(b, "://");
   if (d)
     b = d + 3;
-  d = strchr(b, '/');
-  if (!d)
-    return strdup("/");
-  b = d + 1;
-  return strdup(b);
+  b = strchr(b, '/');
+  return b ? strdup(b) : strdup("/");
 }

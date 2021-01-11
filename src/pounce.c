@@ -33,6 +33,7 @@ void pounce_construct(pounce *pounce, core_callback *callback, void *state)
   *pounce = (struct pounce) {0};
   list_construct(&pounce->workers);
   timer_construct(&pounce->timer, pounce_timeout, pounce);
+  string_construct(&pounce->request);
 }
 
 static void pounce_usage(void)
@@ -46,6 +47,8 @@ static void pounce_usage(void)
   (void) fprintf(stderr, "    -c NUMBER       set number of connections (defaults to number of cpu cores * 4)\n");
   (void) fprintf(stderr, "    -t NUMBER       set number of threads (defaults to number of cpu cores)\n");
   (void) fprintf(stderr, "    -d SECONDS      set duration of benchmark (defaults to 10 seconds)\n");
+  (void) fprintf(stderr, "    -H HEADER       add custom header to request\n");
+  (void) fprintf(stderr, "    -p NUMBER       pipeline a number of requests (defaults to off)\n");
   (void) fprintf(stderr,
                  "    -a              set thread affinity (automatic when threads equal number of cpu cores)\n");
   (void) fprintf(stderr, "    -r              enable realtime scheduler (defaults to off)\n");
@@ -58,10 +61,11 @@ void pounce_configure(pounce *pounce, int argc, char **argv)
   size_t i, remaining, share;
   worker *worker;
   int c;
+  char *s;
 
   while (1)
   {
-    c = getopt(argc, argv, "ac:d:rt:vh");
+    c = getopt(argc, argv, "ac:d:H:p:rt:vh");
     if (c == -1)
       break;
     switch (c)
@@ -74,6 +78,13 @@ void pounce_configure(pounce *pounce, int argc, char **argv)
       break;
     case 'd':
       pounce->duration = strtod(optarg, NULL);
+      break;
+    case 'H':
+      string_append(&pounce->request, optarg);
+      string_append(&pounce->request, "\r\n");
+      break;
+    case 'p':
+      pounce->pipeline = strtoul(optarg, NULL, 0);
       break;
     case 'r':
       pounce->realtime = 1;
@@ -111,6 +122,10 @@ void pounce_configure(pounce *pounce, int argc, char **argv)
   pounce->host = url_host(argv[0]);
   pounce->serv = url_port(argv[0]);
   pounce->target = url_target(argv[0]);
+  (void) asprintf(&s, "GET %s HTTP/1.1\r\nHost: %s\r\n", pounce->target, pounce->host);
+  string_prepend(&pounce->request, s);
+  free(s);
+  string_append(&pounce->request, "\r\n");
 
   net_resolve(pounce->host, pounce->serv, AF_INET, SOCK_STREAM, 0, &pounce->addrinfo);
   if (!pounce->addrinfo)
@@ -175,5 +190,6 @@ void pounce_destruct(pounce *pounce)
   free(pounce->serv);
   free(pounce->target);
   freeaddrinfo(pounce->addrinfo);
+  string_destruct(&pounce->request);
   *pounce = (struct pounce) {0};
 }

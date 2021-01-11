@@ -13,8 +13,8 @@ struct connection
   http_client  client;
   uint64_t     request_start;
   uint64_t     request_stop;
-  uint64_t     requests;
-  uint64_t     request_total;
+  size_t       requests;
+  size_t       responses;
 };
 
 void connection_construct(connection *, core_callback *, void *);
