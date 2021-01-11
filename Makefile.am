@@ -1,6 +1,7 @@
+SUBDIRS = lib/libdynamic lib/libreactor .
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
-AM_CFLAGS = -std=gnu11 -g -O3 -march=native -flto -I$(srcdir)/src
+AM_CFLAGS = -std=gnu11 -g -O3 -march=native -flto -I$(srcdir)/src -I$(srcdir)/lib/libdynamic/src -I$(srcdir)/lib/libreactor/src
 
 bin_PROGRAMS = \
 bin/pounce
@@ -26,7 +27,7 @@ src/http_client.h
 
 bin_pounce_SOURCES = $(POUNCE_SOURCE_FILES) $(POUNCE_HEADER_FILES)
 bin_pounce_LDADD = -lreactor -ldynamic -lm
-bin_pounce_LDFLAGS = -pthread
+bin_pounce_LDFLAGS = -L$(srcdir)/lib/libdynamic -L$(srcdir)/lib/libreactor -pthread
 
 MAINTAINERCLEANFILES = aclocal.m4 config.h.in configure Makefile.in
 maintainer-clean-local:; rm -rf autotools m4

@@ -1,14 +1,16 @@
-AC_INIT([pounce],[1.0.0],[fredrik.widlund@gmail.com])
+AC_INIT([libdynamic],[2.3.0],[fredrik.widlund@gmail.com])
 AC_CONFIG_AUX_DIR(autotools)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign no-define])
 
 : ${CFLAGS="-Wall -Wextra -Wpedantic"}
+: ${CXXFLAGS="-Wall -Wextra -Wpedantic"}
 
 AM_PROG_AR
 LT_INIT
 AM_PROG_CC_C_O
+AC_PROG_CXX
 
 AC_PREFIX_DEFAULT(/usr)
-AC_CONFIG_FILES([Makefile lib/libdynamic/Makefile lib/libdynamic/libdynamic.pc lib/libreactor/Makefile lib/libreactor/libreactor.pc])
+AC_CONFIG_FILES([Makefile libdynamic.pc])
 AC_OUTPUT
