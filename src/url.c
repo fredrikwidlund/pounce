@@ -36,7 +36,7 @@ char *url_port(char *arg)
 
 char *url_target(char *arg)
 {
-  char *b = arg, *e, *d;
+  char *b = arg, *d;
 
   d = strstr(b, "://");
   if (d)
