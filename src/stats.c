@@ -68,7 +68,7 @@ void stats_report(stats *stats, char *prefix, FILE *file)
 
   (void) fprintf(file,
                  "%s%srequests %.0f rps, success %.02f%%"
-                 ",latency %.02fus/%.02fus/%.02fus/%.02fus, usage %.02f%% of %.02fGhz\n",
+                 ", latency %.02fus/%.02fus/%.02fus/%.02fus, usage %.02f%% of %.02fGhz\n",
                  prefix ? prefix : "", prefix ? " " : "", (double) stats->data_points / duration,
                  100. * (double) stats->success / stats->data_points, (double) stats->latency_minimum / 1000.,
                  (double) average / 1000., (double) stats->latency_maximum / 1000., stddev / 1000.,
