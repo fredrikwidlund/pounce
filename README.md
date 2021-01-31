@@ -8,7 +8,8 @@ build
      tar fxz pounce-1.0.0.tar.gz
      cd pounce-1.0.0
      ./configure
-     make install
+     make
+     sudo make install
 
 run
 ---
