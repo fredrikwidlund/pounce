@@ -3,7 +3,7 @@ AC_CONFIG_AUX_DIR(autotools)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign no-define])
 
-: ${CFLAGS="-Wall -Wextra -Wpedantic"}
+: ${CFLAGS="-Wall -Wextra -Wpedantic -g -O3 -flto -march=native"}
 
 AM_PROG_AR
 LT_INIT
