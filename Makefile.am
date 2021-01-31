@@ -39,4 +39,8 @@ maintainer-clean-local:
 indent:
 	clang-format -i src/*.c
 
+docker-build:
+	docker build -t pounce-sdk .
+	id=$$(docker create pounce-sdk); docker cp $$id:/pounce-1.0.0/bin/pounce pounce; docker rm -v $$id
+
 .PHONY: indent
