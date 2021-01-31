@@ -60,7 +60,7 @@ void pounce_configure(pounce *pounce, int argc, char **argv)
 {
   size_t i, remaining, share;
   worker *worker;
-  int c;
+  int c, e;
   char *s;
 
   while (1)
@@ -122,7 +122,9 @@ void pounce_configure(pounce *pounce, int argc, char **argv)
   pounce->host = url_host(argv[0]);
   pounce->serv = url_port(argv[0]);
   pounce->target = url_target(argv[0]);
-  (void) asprintf(&s, "GET %s HTTP/1.1\r\nHost: %s\r\n", pounce->target, pounce->host);
+  e = asprintf(&s, "GET %s HTTP/1.1\r\nHost: %s\r\n", pounce->target, pounce->host);
+  if (e == -1)
+    err(1, "asprintf");
   string_prepend(&pounce->request, s);
   free(s);
   string_append(&pounce->request, "\r\n");
