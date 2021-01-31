@@ -5,7 +5,7 @@ AC_CONFIG_SUBDIRS([lib/libdynamic lib/libreactor])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign no-define])
 
 : ${CFLAGS="-Wall -Wextra -Wpedantic -g -O3 -flto -march=native"}
-CFLAGS="$CFLAGS -I${abs_top_srcdir}/lib/libdynamic/src"
+CFLAGS="$CFLAGS -I${ac_pwd}/lib/libdynamic/src"
 export CFLAGS
 
 AM_PROG_AR
