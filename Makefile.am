@@ -3,7 +3,7 @@ install installdirs: SUBDIRS =
 
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
-AM_CFLAGS = -std=gnu11 -I$(srcdir)/src -I$(srcdir)/lib/libdynamic/src -I$(srcdir)/lib/libreactor/src
+AM_CFLAGS = -std=gnu11
 
 bin_PROGRAMS = \
 bin/pounce
