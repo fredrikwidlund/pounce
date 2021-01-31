@@ -4,6 +4,7 @@ install installdirs: SUBDIRS =
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
 AM_CFLAGS = -std=gnu11
+EXTRA_DIST = Dockerfile
 
 bin_PROGRAMS = \
 bin/pounce
