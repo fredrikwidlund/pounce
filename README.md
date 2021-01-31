@@ -6,6 +6,7 @@ Build
 
      wget https://github.com/fredrikwidlund/pounce/releases/download/v1.0.0/pounce-1.0.0.tar.gz
      tar fxz pounce-1.0.0.tar.gz
+     cd pounce-1.0.0
      ./configure
      make install
 
