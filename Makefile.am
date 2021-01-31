@@ -1,8 +1,9 @@
+SUBDIRS = lib/libdynamic lib/libreactor .
+install installdirs: SUBDIRS =
+
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
 AM_CFLAGS = -std=gnu11 -I$(srcdir)/src -I$(srcdir)/lib/libdynamic/src -I$(srcdir)/lib/libreactor/src
-
-EXTRA_DIST = lib/libdynamic lib/libreactor
 
 bin_PROGRAMS = \
 bin/pounce
@@ -29,24 +30,8 @@ src/http_client.h
 bin_pounce_SOURCES = $(POUNCE_SOURCE_FILES) $(POUNCE_HEADER_FILES)
 bin_pounce_LDADD = lib/libreactor/libreactor.la lib/libdynamic/libdynamic.la -lm
 bin_pounce_LDFLAGS = -pthread
-#bin_pounce_LDFLAGS = -L$(srcdir)/lib/libdynamic -L$(srcdir)/lib/libreactor -pthread
-
-lib/libreactor/libreactor.la:
-	$(MAKE) -C lib/libreactor CFLAGS="$(CFLAGS) -I../libdynamic/src"
-
-lib/libdynamic/libdynamic.la:
-	$(MAKE) -C lib/libdynamic
 
 MAINTAINERCLEANFILES = aclocal.m4 config.h.in configure Makefile.in
-
-dist-hook:
-	rm -f lib/libdynamic/Makefile lib/libdynamic/libdynamic.pc
-	rm -f lib/libreactor/Makefile lib/libreactor/libreactor.pc
-	rm -rf `find $(distdir) -name ".deps" -o -name ".dirstamp"`
-
-clean-local:
-	$(MAKE) -C lib/libreactor clean
-	$(MAKE) -C lib/libdynamic clean
 
 maintainer-clean-local:
 	rm -rf autotools m4
