@@ -190,7 +190,8 @@ void pounce_destruct(pounce *pounce)
   free(pounce->host);
   free(pounce->serv);
   free(pounce->target);
-  freeaddrinfo(pounce->addrinfo);
+  if (pounce->addrinfo)
+    freeaddrinfo(pounce->addrinfo);
   string_destruct(&pounce->request);
   *pounce = (struct pounce) {0};
 }
