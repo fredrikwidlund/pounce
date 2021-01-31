@@ -1,7 +1,7 @@
 # pounce
 HTTP benchmark utility
 
-Build
+build
 -----
 
      wget https://github.com/fredrikwidlund/pounce/releases/download/v1.0.0/pounce-1.0.0.tar.gz
@@ -10,7 +10,7 @@ Build
      ./configure
      make install
 
-Run
+run
 ---
 
      pounce http://127.0.0.1
