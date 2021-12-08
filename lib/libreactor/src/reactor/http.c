@@ -197,6 +197,7 @@ ssize_t http_response_read(http_response *response, segment data)
                          &response->version, &response->code,
                          (const char **) &response->reason.base, &response->reason.size,
                          (struct phr_header *) response->headers.header, &response->headers.count, 0);
+  asm volatile("": : :"memory");
   if (dynamic_unlikely(n <= 0))
     return n == -2 ? 0 : -1;
   header_size = n;
