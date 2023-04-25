@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: install cmocka
+      run: sudo apt-get install -y cmocka
     - name: autogen.sh
       run: ./autogen.sh
     - name: configure
